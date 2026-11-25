@@ -28,7 +28,7 @@ namespace ACE.Server.Network.Handlers
         {
             string clientString = message.Payload.ReadString16L();
 
-            if (clientString != session.Account)
+            if (!AccountNames.Match(clientString, session.Account))
                 return;
 
             if (ServerManager.ShutdownInProgress)
@@ -170,6 +170,8 @@ namespace ACE.Server.Network.Handlers
                     session.Characters.Add(player.Character);
 
                     SendCharacterCreateResponse(session, CharacterGenerationVerificationResponse.Ok, player.Guid, characterCreateInfo.Name);
+                    // The list again, as after a deletion: it carries the new character's details for Ammolite's login plugin.
+                    session.Network.EnqueueSend(new GameMessageCharacterList(session.Characters, session));
                 });
             });
         }
@@ -208,7 +210,7 @@ namespace ACE.Server.Network.Handlers
                 return;
             }
 
-            if (clientString != session.Account)
+            if (!AccountNames.Match(clientString, session.Account))
             {
                 session.SendCharacterError(CharacterError.EnterGameCharacterNotOwned);
                 return;
@@ -288,7 +290,7 @@ namespace ACE.Server.Network.Handlers
                 return;
             }
 
-            if (clientString != session.Account)
+            if (!AccountNames.Match(clientString, session.Account))
             {
                 session.SendCharacterError(CharacterError.Delete);
                 return;
