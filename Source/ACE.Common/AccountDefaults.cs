@@ -32,5 +32,23 @@ namespace ACE.Common
         /// True by default.
         /// </summary>
         public bool ForceWorkFactorMigration { get; set; } = true;
+
+        /// <summary>
+        /// Whether several sessions may log in to one account at once, each playing its own character; a character is
+        /// still in the world only once. True by default.
+        /// </summary>
+        public bool AllowSeveralSessionsPerAccount { get; set; } = true;
+
+        /// <summary>
+        /// When set, every password login is checked with this site address (an https POST of the name, the password and the
+        /// player's address) instead of the account's own password, and the site names the account the login belongs to.
+        /// Empty by default: the account's own password is checked.
+        /// </summary>
+        public string SiteLoginCheckUrl { get; set; } = "";
+
+        /// <summary>
+        /// The site's token for this server, sent with every site login check. Required when SiteLoginCheckUrl is set.
+        /// </summary>
+        public string SiteLoginCheckToken { get; set; } = "";
     }
 }

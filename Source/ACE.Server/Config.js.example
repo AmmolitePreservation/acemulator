@@ -30,7 +30,13 @@
             "DefaultAccessLevel": 0,
             "AllowAutoAccountCreation": true,
             "PasswordHashWorkFactor": 8,
-            "ForceWorkFactorMigration": true
+            "ForceWorkFactorMigration": true,
+            // Several sessions may log in to one account at once, each playing its own character.
+            "AllowSeveralSessionsPerAccount": true,
+            // An https address that checks every password login in place of the account's own password (Ammolite's
+            // /api/v1/loginServer/check), and the token it knows this server by. Empty checks the account's own password.
+            "SiteLoginCheckUrl": "",
+            "SiteLoginCheckToken": ""
         },
 
         // The folder that contains AC DAT files (client_cell_1.dat, client_portal.dat, client_highres.dat, client_local_English.dat)

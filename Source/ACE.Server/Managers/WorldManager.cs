@@ -111,6 +111,15 @@ namespace ACE.Server.Managers
 
         private static void DoPlayerEnterWorld(Session session, Character character, Biota playerBiota, PossessedBiotas possessedBiotas)
         {
+            // Several sessions of one account can ask for the same character while its possessions load; this runs on the
+            // world's action queue one at a time, so the first one in takes the character and the others are refused.
+            if (PlayerManager.GetOnlinePlayer(character.Id) != null)
+            {
+                session.State = Network.Enum.SessionState.AuthConnected;
+                session.SendCharacterError(Network.Enum.CharacterError.EnterGameCharacterInWorld);
+                return;
+            }
+
             Player player;
 
             Player.HandleNoLogLandblock(playerBiota, out var playerLoggedInOnNoLogLandblock);

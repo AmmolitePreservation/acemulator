@@ -54,6 +54,23 @@ namespace ACE.Server.Network.Handlers
 
         private static void DoLogin(Session session, PacketInboundLoginRequest loginRequest)
         {
+            if (SiteLogin.IsEnabled && loginRequest.NetAuthType == NetAuthType.AccountPassword && loginRequest.Password != "")
+            {
+                var outcome = SiteLogin.Check(loginRequest.Account, loginRequest.Password, session.EndPointC2S.Address, out var accountName);
+                var siteAccount = outcome == SiteLoginOutcome.Accepted ? DatabaseManager.Authentication.GetAccountByName(accountName) : null;
+
+                try
+                {
+                    AccountSelectCallback(siteAccount, session, loginRequest, outcome);
+                }
+                catch (Exception ex)
+                {
+                    log.Error("Error in HandleLoginRequest after the site login check.", ex);
+                    session.Terminate(SessionTerminationReason.AccountSelectCallbackException);
+                }
+                return;
+            }
+
             var account = DatabaseManager.Authentication.GetAccountByName(loginRequest.Account);
 
             if (account == null)
@@ -88,7 +105,7 @@ namespace ACE.Server.Network.Handlers
             try
             {
                 log.DebugFormat("new client connected: {0}. setting session properties", loginRequest.Account);
-                AccountSelectCallback(account, session, loginRequest);
+                AccountSelectCallback(account, session, loginRequest, SiteLoginOutcome.NotChecked);
             }
             catch (Exception ex)
             {
@@ -98,7 +115,7 @@ namespace ACE.Server.Network.Handlers
         }
 
 
-        private static void AccountSelectCallback(Account account, Session session, PacketInboundLoginRequest loginRequest)
+        private static void AccountSelectCallback(Account account, Session session, PacketInboundLoginRequest loginRequest, SiteLoginOutcome siteLogin)
         {
             if (packetLog.IsDebugEnabled)
                 packetLog.DebugFormat("ConnectRequest TS: {0}", Timers.PortalYearTicks);
@@ -148,13 +165,26 @@ namespace ACE.Server.Network.Handlers
                 return;
             }
 
+            switch (siteLogin)
+            {
+                case SiteLoginOutcome.Refused:
+                    session.Terminate(SessionTerminationReason.NotAuthorizedPasswordMismatch, new GameMessageBootAccount(" because the account name or password was not correct"));
+                    return;
+                case SiteLoginOutcome.LockedOut:
+                    session.Terminate(SessionTerminationReason.NotAuthorizedPasswordMismatch, new GameMessageBootAccount(" because of too many failed logins. Try again in a few minutes"));
+                    return;
+                case SiteLoginOutcome.Unavailable:
+                    session.Terminate(SessionTerminationReason.AccountSelectCallbackException, new GameMessageBootAccount(" because the login could not be checked right now. Try again shortly"));
+                    return;
+            }
+
             if (account == null)
             {
                 session.Terminate(SessionTerminationReason.NotAuthorizedAccountNotFound, new GameMessageCharacterError(CharacterError.AccountDoesntExist));
                 return;
             }
 
-            if (!PropertyManager.GetBool("account_login_boots_in_use").Item)
+            if (!ConfigManager.Config.Server.Accounts.AllowSeveralSessionsPerAccount && !PropertyManager.GetBool("account_login_boots_in_use").Item)
             {
                 if (NetworkManager.Find(account.AccountName) != null)
                 {
@@ -165,7 +195,7 @@ namespace ACE.Server.Network.Handlers
 
             if (loginRequest.NetAuthType == NetAuthType.AccountPassword)
             {
-                if (!account.PasswordMatches(loginRequest.Password))
+                if (siteLogin != SiteLoginOutcome.Accepted && !account.PasswordMatches(loginRequest.Password))
                 {
                     if (WorldManager.WorldStatus == WorldManager.WorldStatusState.Open)
                         log.Info($"client {loginRequest.Account} connected with non matching password so booting");
@@ -180,7 +210,7 @@ namespace ACE.Server.Network.Handlers
                     return;
                 }
 
-                if (PropertyManager.GetBool("account_login_boots_in_use").Item)
+                if (!ConfigManager.Config.Server.Accounts.AllowSeveralSessionsPerAccount && PropertyManager.GetBool("account_login_boots_in_use").Item)
                 {
                     var previouslyConnectedAccount = NetworkManager.Find(account.AccountName);
 

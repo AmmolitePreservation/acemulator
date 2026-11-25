@@ -153,6 +153,7 @@ namespace ACE.Server
 
             log.Info("Initializing ConfigManager...");
             ConfigManager.Initialize();
+            Network.Handlers.SiteLogin.RequireValidConfiguration();
 
             log.Info("Initializing ModManager...");
             ModManager.Initialize();
