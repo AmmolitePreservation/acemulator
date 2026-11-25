@@ -35,6 +35,16 @@ namespace ACE.Server.Network.GameMessages.Messages
             var useTurbineChat = Convert.ToUInt32(PropertyManager.GetBool("use_turbine_chat").Item);
             Writer.Write(useTurbineChat);
             Writer.Write(1u /*hasThroneOfDestiny*/);
+
+            var details = new List<CharacterListDetails.Details>();
+            foreach (var character in characters)
+            {
+                var player = PlayerManager.FindByGuid(character.Id);
+                if (player == null)
+                    throw new InvalidOperationException($"Character 0x{character.Id:X8} of account {session.Account} has no player record");
+                details.Add(new CharacterListDetails.Details(character.Id, player.Heritage ?? 0, player.Gender ?? 0, player.Level ?? 0));
+            }
+            CharacterListDetails.Write(Writer, details);
         }
     }
 }
