@@ -21,10 +21,12 @@ namespace ACE.Common.Extensions
             if (length == 0)
                 return "";
 
-            reader.Skip(1);
+            // The packed word is one byte for a string under 128 characters; from 128 the first byte carries 0x80 and a
+            // second byte follows.
+            byte packedFirstByte = reader.ReadByte();
             length--;
 
-            if (length > 255)
+            if ((packedFirstByte & 0x80) != 0)
             {
                 reader.Skip(1);
                 length--;
